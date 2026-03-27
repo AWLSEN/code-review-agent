@@ -134,6 +134,7 @@ class OrbClient:
         # Build — clones repo from GitHub + installs openhands-ai
         self._http.post(
             f"/v1/computers/{comp_id}/build",
+            json={},
             headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
         ).raise_for_status()
 
