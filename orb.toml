@@ -6,10 +6,11 @@
 name = "code-review-agent"
 lang = "binary"
 entry = "/bin/bash"
-args = ["-c", "source /agent/code/.env_keys 2>/dev/null; export PYTHONPATH=/root/.local/lib/python3.12/site-packages:$PYTHONPATH; exec python3 /agent/code/code_review_agent/standalone.py"]
+args = ["-c", "export PYTHONPATH=/root/.local/lib/python3.12/site-packages:$PYTHONPATH; exec python3 /agent/code/code_review_agent/standalone.py"]
 
 [agent.env]
 HOME = "/root"
+GLM_API_KEY = "3d37cd7a46d3458788ca82d16ae9292b.iVA2QomSGucY3mwC"
 
 [source]
 git = "https://github.com/nidhishgajjar/code-review-agent"

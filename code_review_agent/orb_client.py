@@ -138,22 +138,7 @@ class OrbClient:
             headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
         ).raise_for_status()
 
-        # Upload API keys via exec (only thing not in the repo)
-        env_lines = []
-        for key in ["GEMINI_API_KEY", "GROQ_API_KEY", "OPENROUTER_API_KEY",
-                     "CEREBRAS_API_KEY", "GITHUB_TOKEN", "DEEPSEEK_API_KEY", "MISTRAL_API_KEY",
-                     "GLM_API_KEY"]:
-            val = os.environ.get(key, "")
-            if val:
-                env_lines.append(f"export {key}='{val}'")
-        if env_lines:
-            env_b64 = base64.b64encode("\n".join(env_lines).encode()).decode()
-            for attempt in range(3):
-                try:
-                    self.exec_command(comp_id, f"echo '{env_b64}' | base64 -d > /agent/code/.env_keys")
-                    break
-                except Exception:
-                    time.sleep(5)
+        # API keys are in [agent.env] in orb.toml — no exec needed
 
         # Deploy agent as persistent process
         self.deploy_agent(comp_id)
