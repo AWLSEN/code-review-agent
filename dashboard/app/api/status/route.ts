@@ -8,16 +8,16 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN!;
 
 // The 10 deployed computers
 const COMPUTER_REPOS: Record<string, string> = {
-  "9e29e918-617c-44cd-be79-345bcc427c8f": "NousResearch/hermes-agent",
-  "f7bdfe87-3399-464b-926f-ae25ee6d5b8d": "All-Hands-AI/OpenHands",
-  "e324011b-f8e2-46ed-8ac3-3c4aafd553d8": "langchain-ai/langchain",
-  "7ac90cb2-b406-4ec2-a5d2-5edaf7389e94": "vercel/next.js",
-  "c00b7d1e-08cc-46b0-8679-5ff42921981e": "facebook/react",
-  "e4617ca0-94f3-4bed-8ecf-dfeba1b109e7": "fastapi/fastapi",
-  "3a86a29e-ef31-47ab-8193-c4a797c35656": "anthropics/anthropic-cookbook",
-  "c0d57f91-6f93-46fd-86bf-3eefa5867e0d": "huggingface/transformers",
-  "36f50fc9-822c-4fb0-b6be-49e8f9c1ac34": "microsoft/autogen",
-  "37815c4c-5d35-458f-986f-dec02470c427": "vllm-project/vllm",
+  "e26746b2-95ee-419f-862e-483bd8a56ecb": "NousResearch/hermes-agent",
+  "4505e687-328f-45d2-a64d-871d2bc8b42a": "All-Hands-AI/OpenHands",
+  "82aeb6e5-395d-43d1-8f8f-2185d457a7b3": "langchain-ai/langchain",
+  "76bc4151-a04f-4fbc-9eb5-6903701f2096": "vercel/next.js",
+  "5bcf925f-5c34-4fdc-869b-efad3dca5faf": "facebook/react",
+  "ad9f2236-9b63-4db2-9aa8-72329020883c": "nodejs/node",
+  "f0261954-be30-43c4-bca8-8d1206858686": "fastapi/fastapi",
+  "08982c08-2af8-4e82-9f4d-0a2af6503881": "anthropics/anthropic-cookbook",
+  "45c3d8e0-a29b-47b7-bce6-b6af57b52763": "huggingface/transformers",
+  "d0d0edd6-1720-4c2b-8eba-8712fe60c424": "microsoft/autogen",
 };
 
 const STARTED_AT = "2026-04-15T02:30:00Z";
