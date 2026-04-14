@@ -6,29 +6,28 @@ const ORB_API = "https://api.orbcloud.dev/v1";
 const ORB_KEY = process.env.ORB_API_KEY!;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN!;
 
-// The 10 deployed computers
+// The 10 deployed computers (review@orbcloud.dev org)
 const COMPUTER_REPOS: Record<string, string> = {
-  "e26746b2-95ee-419f-862e-483bd8a56ecb": "NousResearch/hermes-agent",
-  "4505e687-328f-45d2-a64d-871d2bc8b42a": "All-Hands-AI/OpenHands",
-  "82aeb6e5-395d-43d1-8f8f-2185d457a7b3": "langchain-ai/langchain",
-  "76bc4151-a04f-4fbc-9eb5-6903701f2096": "vercel/next.js",
-  "5bcf925f-5c34-4fdc-869b-efad3dca5faf": "facebook/react",
-  "ad9f2236-9b63-4db2-9aa8-72329020883c": "nodejs/node",
-  "f0261954-be30-43c4-bca8-8d1206858686": "fastapi/fastapi",
-  "08982c08-2af8-4e82-9f4d-0a2af6503881": "anthropics/anthropic-cookbook",
-  "45c3d8e0-a29b-47b7-bce6-b6af57b52763": "huggingface/transformers",
-  "d0d0edd6-1720-4c2b-8eba-8712fe60c424": "microsoft/autogen",
+  "ee6d4af4-bbc8-4a1a-a4b5-61998ef41e1b": "NousResearch/hermes-agent",
+  "8efbc7da-6b8e-48cd-8fcf-01bde43e2fd6": "All-Hands-AI/OpenHands",
+  "4091a5bb-8d59-4fec-89da-0aa13d29eca0": "langchain-ai/langchain",
+  "19220448-931b-483e-80c5-b63ab399072d": "vercel/next.js",
+  "e84f2c00-49b4-4acb-8fd8-096c446695b2": "facebook/react",
+  "a98a2934-9b8b-4edd-96ac-77b14b78a2df": "nodejs/node",
+  "249e1bb1-096e-4514-88e8-c573af9a7109": "fastapi/fastapi",
+  "4d21fd91-cd48-4907-ae3d-4bfe73fe1904": "anthropics/anthropic-cookbook",
+  "385d6961-78a8-4b6c-8374-c2f51918e5d1": "huggingface/transformers",
+  "8a493dc0-db5e-402f-83ca-39ffea5c0d60": "microsoft/autogen",
 };
 
-const STARTED_AT = "2026-04-15T02:30:00Z";
+const STARTED_AT = "2026-04-14T22:10:00Z";
 const DATA_DIR = "/opt/review-dashboard/data";
 const STATS_FILE = join(DATA_DIR, "stats.json");
 
-// Persistent stats on disk
 interface Stats {
   total_samples: number;
-  sleeping_samples: number; // sum of sleeping agents per sample
-  running_samples: number; // sum of running agents per sample
+  sleeping_samples: number;
+  running_samples: number;
   total_reviews: number;
   started_at: string;
 }
@@ -126,14 +125,12 @@ export async function GET() {
       }
     }
 
-    // Accumulate stats to disk
     const stats = loadStats();
     stats.total_samples++;
     stats.sleeping_samples += sleeping;
     stats.running_samples += running;
     saveStats(stats);
 
-    // Calculate percentages (per-agent basis: 10 agents per sample)
     const totalAgentSamples = stats.total_samples * 10;
     const sleepingPct =
       totalAgentSamples > 0
@@ -141,7 +138,6 @@ export async function GET() {
         : 0;
     const activePct = 100 - sleepingPct;
 
-    // Usage from Orb API
     const usage = await orbFetch("/usage");
     const runtimeGbHours = usage.runtime_gb_hours || 0;
     const diskGbHours = usage.disk_gb_hours || 0;
@@ -149,7 +145,6 @@ export async function GET() {
     const costDisk = (diskGbHours / 720) * 0.05;
     const totalCost = costRuntime + costDisk;
 
-    // Uptime
     const uptimeMs = Date.now() - new Date(STARTED_AT).getTime();
     const uptimeHours = Math.round((uptimeMs / 3600000) * 10) / 10;
 
