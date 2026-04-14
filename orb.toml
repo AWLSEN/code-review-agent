@@ -1,35 +1,39 @@
-# ORB Cloud config for the stateful code review agent.
-# Code is cloned from GitHub to /agent/code.
-# Agent runs as persistent HTTP server with OpenHands.
+# Orb Cloud config for the code review agent.
+# Each computer is assigned one GitHub repo via GITHUB_REPO env var.
+# Agent runs OpenHands CLI in headless mode via watchdog.
 
 [agent]
-name = "code-review-agent"
-lang = "binary"
+name  = "code-review-agent"
+lang  = "binary"
 entry = "/bin/bash"
-args = ["-c", "export PYTHONPATH=/root/.local/lib/python3.12/site-packages:$PYTHONPATH; exec python3 /agent/code/code_review_agent/standalone.py"]
+args  = ["/root/src/watchdog.sh"]
 
 [agent.env]
-HOME = "/root"
-GLM_API_KEY = "${GLM_API_KEY}"
+HOME             = "/root"
+GITHUB_TOKEN     = "${GITHUB_TOKEN}"
+GITHUB_REPO      = "${GITHUB_REPO}"
+LLM_MODEL        = "anthropic/glm-5.1"
+LLM_API_KEY      = "${GLM_API_KEY}"
+LLM_BASE_URL     = "https://api.z.ai/api/anthropic"
+OPENHANDS_SUPPRESS_BANNER = "1"
 
 [source]
-git = "https://github.com/nidhishgajjar/code-review-agent"
+git    = "https://github.com/nidhishgajjar/code-review-agent"
 branch = "main"
 
 [build]
+working_dir = "/root"
 steps = [
-  "mkdir -p /agent/code/repos /agent/code/reviews",
-  "touch /agent/code/memory.md",
-  "pip install --break-system-packages --ignore-installed openhands-ai",
+  "apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates python3 python3-pip",
+  "curl -fsSL https://install.openhands.dev/install.sh | sh",
+  "cp -r /agent/code/src /root/src",
+  "chmod +x /root/src/watchdog.sh",
+  "mkdir -p /root/data/reviews /root/data/logs",
 ]
-working_dir = "/agent/code"
-
-[backend]
-provider = "custom"
-
-[ports]
-expose = [8000]
 
 [resources]
-runtime = "8GB"
-disk = "16GB"
+runtime = "4GB"
+disk    = "8GB"
+
+[lifecycle]
+idle_timeout = "120s"
