@@ -20,7 +20,6 @@ const COMPUTER_REPOS: Record<string, string> = {
   "8958a1bb-1106-4cc0-b3cc-db3d0df89670": "microsoft/autogen",
 };
 
-const STARTED_AT = "2026-04-14T22:10:00Z";
 const DATA_DIR = "/opt/review-dashboard/data";
 const STATS_FILE = join(DATA_DIR, "stats.json");
 
@@ -38,12 +37,13 @@ function loadStats(): Stats {
       return JSON.parse(readFileSync(STATS_FILE, "utf-8"));
     }
   } catch {}
+  // First run ever - set started_at to now, persists forever
   return {
     total_samples: 0,
     sleeping_samples: 0,
     running_samples: 0,
     total_reviews: 0,
-    started_at: STARTED_AT,
+    started_at: new Date().toISOString(),
   };
 }
 
@@ -64,7 +64,7 @@ async function orbFetch(path: string) {
 
 async function fetchRecentReviews() {
   const res = await fetch(
-    "https://api.github.com/search/issues?q=commenter:nidhishgajjar+%22Orb+Code+Review%22&sort=updated&order=desc&per_page=10",
+    "https://api.github.com/search/issues?q=commenter:nidhishgajjar+%22Orb+Code+Review%22&sort=updated&order=desc&per_page=20",
     {
       headers: {
         Authorization: `token ${GITHUB_TOKEN}`,
@@ -73,15 +73,18 @@ async function fetchRecentReviews() {
       next: { revalidate: 0 },
     }
   );
-  if (!res.ok) return [];
+  if (!res.ok) return { total: 0, items: [] };
   const data = await res.json();
-  return (data.items || []).slice(0, 10).map((item: any) => ({
-    repo: item.repository_url?.split("/repos/")[1] || "",
-    title: item.title,
-    number: item.number,
-    url: item.html_url,
-    updated: item.updated_at,
-  }));
+  return {
+    total: data.total_count || 0,
+    items: (data.items || []).slice(0, 20).map((item: any) => ({
+      repo: item.repository_url?.split("/repos/")[1] || "",
+      title: item.title,
+      number: item.number,
+      url: item.html_url,
+      updated: item.updated_at,
+    })),
+  };
 }
 
 export async function GET() {
@@ -145,10 +148,10 @@ export async function GET() {
     const costDisk = (diskGbHours / 720) * 0.05;
     const totalCost = costRuntime + costDisk;
 
-    const uptimeMs = Date.now() - new Date(STARTED_AT).getTime();
+    const uptimeMs = Date.now() - new Date(stats.started_at).getTime();
     const uptimeHours = Math.round((uptimeMs / 3600000) * 10) / 10;
 
-    const reviews = await fetchRecentReviews();
+    const reviewData = await fetchRecentReviews();
 
     return NextResponse.json({
       agents,
@@ -166,8 +169,9 @@ export async function GET() {
         cost_total: Math.round(totalCost * 100) / 100,
         uptime_hours: uptimeHours,
       },
-      reviews,
-      started_at: STARTED_AT,
+      reviews: reviewData.items,
+      total_reviews: reviewData.total,
+      started_at: stats.started_at,
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {

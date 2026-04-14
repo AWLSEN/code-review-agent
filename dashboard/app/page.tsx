@@ -34,6 +34,7 @@ interface StatusData {
     uptime_hours: number;
   };
   reviews: Review[];
+  total_reviews: number;
   started_at: string;
   timestamp: string;
 }
@@ -130,7 +131,7 @@ export default function Home() {
     );
   }
 
-  const { agents, stats, usage, reviews } = data;
+  const { agents, stats, usage, reviews, total_reviews } = data;
 
   return (
     <div className="min-h-screen">
@@ -179,7 +180,7 @@ export default function Home() {
           />
           <StatCard
             label="Reviews"
-            value={reviews.length}
+            value={total_reviews}
             sub="PRs reviewed"
           />
         </div>
