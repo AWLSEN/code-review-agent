@@ -62,9 +62,10 @@ async function orbFetch(path: string) {
   return res.json();
 }
 
-async function fetchRecentReviews() {
+async function fetchRecentReviews(since: string) {
+  const sinceDate = since.slice(0, 19) + "Z";
   const res = await fetch(
-    "https://api.github.com/search/issues?q=commenter:nidhishgajjar+%22Orb+Code+Review%22&sort=updated&order=desc&per_page=20",
+    `https://api.github.com/search/issues?q=commenter:nidhishgajjar+%22Orb+Code+Review%22+updated:>${sinceDate}&sort=updated&order=desc&per_page=20`,
     {
       headers: {
         Authorization: `token ${GITHUB_TOKEN}`,
@@ -151,7 +152,7 @@ export async function GET() {
     const uptimeMs = Date.now() - new Date(stats.started_at).getTime();
     const uptimeHours = Math.round((uptimeMs / 3600000) * 10) / 10;
 
-    const reviewData = await fetchRecentReviews();
+    const reviewData = await fetchRecentReviews(stats.started_at);
 
     return NextResponse.json({
       agents,
