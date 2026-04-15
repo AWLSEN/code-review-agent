@@ -58,6 +58,6 @@ run_cycle() {
 while true; do
     run_cycle
 
-    log "Restarting in 30s..."
-    sleep 30
+    log "Next cycle in 5 minutes..."
+    sleep 300
 done
