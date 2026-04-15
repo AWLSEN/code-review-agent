@@ -1,6 +1,6 @@
 # Orb Cloud config for the code review agent.
-# Each computer is assigned one GitHub repo via GITHUB_REPO env var.
-# Agent runs OpenHands CLI in headless mode via watchdog.
+# Agent claims repos from the claim API and reviews PRs continuously.
+# Runs OpenHands CLI in headless mode via watchdog.
 
 [agent]
 name  = "code-review-agent"
@@ -9,12 +9,12 @@ entry = "/bin/bash"
 args  = ["/root/src/watchdog.sh"]
 
 [agent.env]
-HOME             = "/root"
-GITHUB_TOKEN     = "${GITHUB_TOKEN}"
-GITHUB_REPO      = "${GITHUB_REPO}"
-LLM_MODEL        = "anthropic/glm-5.1"
-LLM_API_KEY      = "${GLM_API_KEY}"
-LLM_BASE_URL     = "https://api.z.ai/api/anthropic"
+HOME                    = "/root"
+GITHUB_TOKEN            = "${GITHUB_TOKEN}"
+ORB_COMPUTER_ID         = "${ORB_COMPUTER_ID}"
+LLM_MODEL               = "anthropic/glm-5.1"
+LLM_API_KEY             = "${GLM_API_KEY}"
+LLM_BASE_URL            = "https://api.z.ai/api/anthropic"
 OPENHANDS_SUPPRESS_BANNER = "1"
 
 [source]
@@ -28,7 +28,7 @@ steps = [
   "curl -fsSL https://install.openhands.dev/install.sh | sh",
   "cp -r /agent/code/src /root/src",
   "chmod +x /root/src/watchdog.sh",
-  "mkdir -p /root/data/reviews /root/data/logs",
+  "mkdir -p /root/data/reviews /root/data/logs /root/data/repos",
 ]
 
 [resources]

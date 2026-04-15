@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Deploy code review agents to Orb Cloud.
 
-Creates one computer per repo, uploads config, builds, and deploys.
+Creates N computers, each running the same agent.
+Agents claim repos dynamically from the claim API.
 
 Usage:
-    python3 scripts/deploy.py                # deploy all 10 repos
-    python3 scripts/deploy.py facebook/react # deploy one repo
+    python3 scripts/deploy.py          # deploy 10 agents
+    python3 scripts/deploy.py 5        # deploy 5 agents
 """
 
 import json
 import os
 import sys
-import time
 import urllib.request
 import urllib.error
 
@@ -24,21 +24,6 @@ ORB_API = os.environ["ORB_API_URL"]
 ORB_KEY = os.environ["ORB_API_KEY"]
 GLM_KEY = os.environ["GLM_API_KEY"]
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
-
-# 10 popular repos with active PRs
-DEFAULT_REPOS = [
-    "NousResearch/hermes-agent",
-    "All-Hands-AI/OpenHands",
-    "langchain-ai/langchain",
-    "vercel/next.js",
-    "facebook/react",
-    "nodejs/node",
-    "fastapi/fastapi",
-    "anthropics/anthropic-cookbook",
-    "huggingface/transformers",
-    "microsoft/autogen",
-]
-
 ORB_TOML = Path(__file__).parent.parent / "orb.toml"
 
 
@@ -73,27 +58,21 @@ def api_toml(path, toml_bytes):
         return json.loads(resp.read().decode())
 
 
-def deploy_repo(repo: str):
-    slug = repo.replace("/", "-")
+def deploy_agent(index: int):
+    name = f"reviewer-{index:02d}"
     print(f"\n{'='*60}")
-    print(f"Deploying: {repo}")
+    print(f"Deploying agent {index}: {name}")
     print(f"{'='*60}")
 
     # 1. Create computer
     print("  Creating computer...")
-    computer = api("POST", "/computers", {"name": f"reviewer-{slug}"})
+    computer = api("POST", "/computers", {"name": name})
     cid = computer["id"]
     print(f"  Computer: {cid[:8]}")
 
-    # 2. Upload config with repo-specific env var
+    # 2. Upload config
     print("  Uploading config...")
     toml_content = ORB_TOML.read_text()
-    # Inject the repo as a build-time env override isn't possible,
-    # so we modify the TOML to set GITHUB_REPO directly
-    toml_content = toml_content.replace(
-        'GITHUB_REPO      = "${GITHUB_REPO}"',
-        f'GITHUB_REPO      = "{repo}"',
-    )
     api_toml(f"/computers/{cid}/config", toml_content.encode())
 
     # 3. Build
@@ -108,21 +87,22 @@ def deploy_repo(repo: str):
 
     print(f"  Build OK ({len(build.get('steps', []))} steps)")
 
-    # 4. Deploy agent
+    # 4. Deploy agent with computer ID passed as secret
     print("  Deploying agent...")
     result = api("POST", f"/computers/{cid}/agents", {
         "task": "start",
         "org_secrets": {
             "GLM_API_KEY": GLM_KEY,
             "GITHUB_TOKEN": GITHUB_TOKEN,
-            "GITHUB_REPO": repo,
+            "ORB_COMPUTER_ID": cid,
         },
     })
     deployed = result.get("deployed", 0)
     print(f"  Deployed: {deployed} agent(s)")
 
     return {
-        "repo": repo,
+        "index": index,
+        "name": name,
         "computer_id": cid,
         "short_id": cid[:8],
         "deployed": deployed,
@@ -130,17 +110,18 @@ def deploy_repo(repo: str):
 
 
 def main():
-    repos = sys.argv[1:] if len(sys.argv) > 1 else DEFAULT_REPOS
+    count = int(sys.argv[1]) if len(sys.argv) > 1 else 10
 
-    print(f"Deploying {len(repos)} code review agents to Orb Cloud")
+    print(f"Deploying {count} code review agents to Orb Cloud")
     print(f"API: {ORB_API}")
     print(f"LLM: GLM 5.1 via api.z.ai")
+    print(f"Agents claim repos dynamically from review.orbcloud.dev/api/claim")
     print()
 
     results = []
-    for repo in repos:
+    for i in range(count):
         try:
-            result = deploy_repo(repo)
+            result = deploy_agent(i)
             if result:
                 results.append(result)
         except Exception as e:
@@ -151,7 +132,7 @@ def main():
     print(f"DEPLOYMENT SUMMARY")
     print(f"{'='*60}")
     for r in results:
-        print(f"  {r['short_id']} | {r['repo']} | agents={r['deployed']}")
+        print(f"  {r['short_id']} | {r['name']} | agents={r['deployed']}")
 
     # Save manifest
     manifest_path = Path(__file__).parent.parent / "data" / "manifest.json"

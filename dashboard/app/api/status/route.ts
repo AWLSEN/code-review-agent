@@ -6,22 +6,9 @@ const ORB_API = "https://api.orbcloud.dev/v1";
 const ORB_KEY = process.env.ORB_API_KEY!;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN!;
 
-// The 10 deployed computers (review@orbcloud.dev org)
-const COMPUTER_REPOS: Record<string, string> = {
-  "73875f64-7256-42a0-a16e-e67ae237a70c": "microsoft/autogen",
-  "dfb5e3e2-73ee-49f9-a684-0a7a439b0820": "huggingface/transformers",
-  "50b8b176-1cbd-4bcc-b753-40ca45b7c744": "anthropics/anthropic-cookbook",
-  "ea48df3f-d68c-44af-aeac-4bd3eb886e51": "fastapi/fastapi",
-  "d4aa5bf0-4d71-42f2-9ca6-e953f21d2c35": "nodejs/node",
-  "81b29ba1-de87-42c4-b71a-9689c95f7139": "facebook/react",
-  "e1c9fdbc-aaf2-4281-92ef-75ada953d3a6": "vercel/next.js",
-  "f8b3fd17-0748-480b-8b5e-d843ea169333": "langchain-ai/langchain",
-  "359d62ef-f693-4db7-a355-bc4756258777": "All-Hands-AI/OpenHands",
-  "2bd81b41-d6a7-4dc5-9da5-b913595956a0": "NousResearch/hermes-agent",
-};
-
 const DATA_DIR = "/opt/review-dashboard/data";
 const STATS_FILE = join(DATA_DIR, "stats.json");
+const REPOS_FILE = join(DATA_DIR, "repos.json");
 
 interface Stats {
   total_samples: number;
@@ -37,7 +24,6 @@ function loadStats(): Stats {
       return JSON.parse(readFileSync(STATS_FILE, "utf-8"));
     }
   } catch {}
-  // First run ever - set started_at to now, persists forever
   return {
     total_samples: 0,
     sleeping_samples: 0,
@@ -52,6 +38,23 @@ function saveStats(stats: Stats) {
     if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
     writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
   } catch {}
+}
+
+function loadRepoAssignments(): Record<string, string[]> {
+  try {
+    if (existsSync(REPOS_FILE)) {
+      const data = JSON.parse(readFileSync(REPOS_FILE, "utf-8"));
+      const byAgent: Record<string, string[]> = {};
+      for (const r of data.repos || []) {
+        if (r.assigned_to) {
+          if (!byAgent[r.assigned_to]) byAgent[r.assigned_to] = [];
+          byAgent[r.assigned_to].push(r.repo);
+        }
+      }
+      return byAgent;
+    }
+  } catch {}
+  return {};
 }
 
 async function orbFetch(path: string) {
@@ -90,20 +93,28 @@ async function fetchRecentReviews(since: string) {
 
 export async function GET() {
   try {
+    // Get all computers from Orb API
+    const computersData = await orbFetch("/computers");
+    const computers = computersData.computers || [];
+
+    // Get repo assignments
+    const assignments = loadRepoAssignments();
+
     const agents: Array<{
       computer_id: string;
       short_id: string;
-      repo: string;
+      name: string;
       state: string;
+      repos: string[];
     }> = [];
 
     let running = 0;
     let sleeping = 0;
     let failed = 0;
 
-    for (const [cid, repo] of Object.entries(COMPUTER_REPOS)) {
+    for (const c of computers) {
       try {
-        const agentData = await orbFetch(`/computers/${cid}/agents`);
+        const agentData = await orbFetch(`/computers/${c.id}/agents`);
         const agentList = agentData.agents || [];
         const active =
           agentList.find((a: any) => a.state !== "failed") || agentList[0];
@@ -114,34 +125,24 @@ export async function GET() {
         else if (state === "failed") failed++;
 
         agents.push({
-          computer_id: cid,
-          short_id: cid.slice(0, 8),
-          repo,
+          computer_id: c.id,
+          short_id: c.id.slice(0, 8),
+          name: c.name,
           state,
+          repos: assignments[c.id] || [],
         });
       } catch {
         agents.push({
-          computer_id: cid,
-          short_id: cid.slice(0, 8),
-          repo,
+          computer_id: c.id,
+          short_id: c.id.slice(0, 8),
+          name: c.name,
           state: "unknown",
+          repos: [],
         });
       }
     }
 
-    const stats = loadStats();
-    stats.total_samples++;
-    stats.sleeping_samples += sleeping;
-    stats.running_samples += running;
-    saveStats(stats);
-
-    const totalAgentSamples = stats.total_samples * 10;
-    const sleepingPct =
-      totalAgentSamples > 0
-        ? Math.round((stats.sleeping_samples / totalAgentSamples) * 100)
-        : 0;
-    const activePct = 100 - sleepingPct;
-
+    // Usage
     const usage = await orbFetch("/usage");
     const runtimeGbHours = usage.runtime_gb_hours || 0;
     const diskGbHours = usage.disk_gb_hours || 0;
@@ -149,21 +150,34 @@ export async function GET() {
     const costDisk = (diskGbHours / 720) * 0.05;
     const totalCost = costRuntime + costDisk;
 
+    // Stats
+    const stats = loadStats();
     const uptimeMs = Date.now() - new Date(stats.started_at).getTime();
     const uptimeHours = Math.round((uptimeMs / 3600000) * 10) / 10;
 
+    // Reviews
     const reviewData = await fetchRecentReviews(stats.started_at);
+
+    // Repo pool stats
+    let totalRepos = 0;
+    let claimedRepos = 0;
+    try {
+      if (existsSync(REPOS_FILE)) {
+        const repoData = JSON.parse(readFileSync(REPOS_FILE, "utf-8"));
+        totalRepos = (repoData.repos || []).length;
+        claimedRepos = (repoData.repos || []).filter((r: any) => r.assigned_to).length;
+      }
+    } catch {}
 
     return NextResponse.json({
       agents,
       stats: {
-        total: agents.length,
+        total_agents: agents.length,
         running,
         sleeping,
         failed,
-        sleeping_pct: sleepingPct,
-        active_pct: activePct,
-        samples: stats.total_samples,
+        total_repos: totalRepos,
+        claimed_repos: claimedRepos,
       },
       usage: {
         runtime_gb_hours: Math.round(runtimeGbHours * 100) / 100,

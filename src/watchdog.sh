@@ -1,28 +1,46 @@
 #!/bin/bash
 # Watchdog for the code review agent.
-# Runs OpenHands in a loop. Each cycle: check PRs, review, exit.
-# Restarts with --resume so the agent keeps its memory across cycles.
+# Each cycle: call claim API for repos, run OpenHands, report back.
+# Restarts with --resume so the agent keeps memory across cycles.
 set -uo pipefail
 
 DATA_DIR="/root/data"
 LOGS_DIR="$DATA_DIR/logs"
 SESSION_FILE="$DATA_DIR/last_session.txt"
 PROMPT_FILE="/root/src/agent-prompt.md"
+CLAIM_API="https://review.orbcloud.dev/api"
+AGENT_ID="${ORB_COMPUTER_ID:-unknown}"
 
-mkdir -p "$LOGS_DIR" "$DATA_DIR/reviews"
+mkdir -p "$LOGS_DIR" "$DATA_DIR/reviews" "$DATA_DIR/repos"
 
 log() { echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $*" | tee -a "$LOGS_DIR/watchdog.log"; }
 
-log "Watchdog starting for repo: ${GITHUB_REPO:-unset}"
+log "Watchdog starting. Agent ID: $AGENT_ID"
 
 build_task() {
-    local repo="$GITHUB_REPO"
     local session_id=$(cat "$SESSION_FILE" 2>/dev/null || echo "")
 
+    # Get repos from claim API
+    local claim=$(curl -s "$CLAIM_API/claim?agent=$AGENT_ID" 2>/dev/null)
+    local repos=$(echo "$claim" | python3 -c "import json,sys; d=json.load(sys.stdin); print(' '.join(d.get('repos',[])))" 2>/dev/null)
+    local new_repo=$(echo "$claim" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('new_repo',''))" 2>/dev/null)
+
+    if [ -z "$repos" ]; then
+        log "No repos assigned yet"
+        repos="waiting"
+    fi
+
+    if [ -n "$new_repo" ]; then
+        log "New repo claimed: $new_repo"
+    fi
+
+    log "Assigned repos: $repos"
+
     if [ -n "$session_id" ]; then
-        echo "Continue reviewing https://github.com/$repo. Check for new open PRs you haven't reviewed yet. If there are none, say 'No new PRs to review' and finish."
+        echo "Continue reviewing. Your assigned repos: $repos. Check each for new PRs, review any unreviewed ones, report back via the done API. If all repos have no new PRs, exit cleanly."
     else
-        cat "$PROMPT_FILE" | sed "s|{GITHUB_REPO}|$repo|g"
+        # First run - use full prompt
+        cat "$PROMPT_FILE"
     fi
 }
 
@@ -58,6 +76,6 @@ run_cycle() {
 while true; do
     run_cycle
 
-    log "Next cycle in 5 minutes..."
-    sleep 300
+    log "Next cycle in 3 minutes..."
+    sleep 180
 done

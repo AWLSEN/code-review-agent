@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 interface Agent {
   computer_id: string;
   short_id: string;
-  repo: string;
+  name: string;
   state: string;
+  repos: string[];
 }
 
 interface Review {
@@ -20,13 +21,12 @@ interface Review {
 interface StatusData {
   agents: Agent[];
   stats: {
-    total: number;
+    total_agents: number;
     running: number;
     sleeping: number;
     failed: number;
-    sleeping_pct: number;
-    active_pct: number;
-    samples: number;
+    total_repos: number;
+    claimed_repos: number;
   };
   usage: {
     runtime_gb_hours: number;
@@ -138,14 +138,9 @@ export default function Home() {
       {/* Header */}
       <header className="border-b border-[var(--border)] px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[var(--accent-rust)] flex items-center justify-center">
-              <span className="text-white font-mono text-sm font-bold">O</span>
-            </div>
-            <span className="font-serif text-xl text-[var(--text-primary)]">
-              Orb Code Reviewer
-            </span>
-          </div>
+          <span className="font-serif text-xl text-[var(--text-primary)]">
+            Orb Code Reviewer
+          </span>
           <a
             href="https://orbcloud.dev"
             className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors font-mono"
@@ -157,21 +152,26 @@ export default function Home() {
 
       <main className="max-w-7xl mx-auto px-6 py-10">
         {/* Hero stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
           <StatCard
-            label="Computers"
-            value={stats.total}
+            label="Agents"
+            value={stats.total_agents}
             sub={`${stats.running} active, ${stats.sleeping} sleeping`}
           />
           <StatCard
-            label="Cost"
-            value={`$${usage.cost_total.toFixed(2)}`}
-            sub={`${usage.uptime_hours}h uptime`}
+            label="Repos"
+            value={stats.claimed_repos}
+            sub={`of ${stats.total_repos} in pool`}
           />
           <StatCard
             label="Reviews"
             value={total_reviews}
             sub="PRs reviewed"
+          />
+          <StatCard
+            label="Cost"
+            value={`$${usage.cost_total.toFixed(2)}`}
+            sub={`${usage.uptime_hours}h uptime`}
           />
           <StatCard
             label="Runtime"
@@ -207,14 +207,9 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <StatusDot state={agent.state} />
-                      <a
-                        href={`https://github.com/${agent.repo}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-mono text-sm text-[var(--text-primary)] hover:text-[var(--accent-rust)] transition-colors"
-                      >
-                        {agent.repo}
-                      </a>
+                      <span className="font-mono text-sm text-[var(--text-primary)]">
+                        {agent.name}
+                      </span>
                     </div>
                     <span
                       className={`text-xs font-mono uppercase tracking-wider ${
@@ -228,8 +223,22 @@ export default function Home() {
                       {stateLabel(agent.state)}
                     </span>
                   </div>
-                  <div className="mt-2 text-xs text-[var(--text-tertiary)] font-mono">
-                    {agent.short_id}
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {agent.repos.length > 0 ? agent.repos.map((repo, i) => (
+                      <a
+                        key={i}
+                        href={`https://github.com/${repo}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--accent-rust)] transition-colors"
+                      >
+                        {repo}
+                      </a>
+                    )) : (
+                      <span className="text-xs text-[var(--text-tertiary)] font-mono">
+                        claiming first repo...
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
