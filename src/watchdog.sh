@@ -76,6 +76,5 @@ run_cycle() {
 while true; do
     run_cycle
 
-    log "Next cycle in 3 minutes..."
-    sleep 180
+    log "Starting next cycle immediately..."
 done
