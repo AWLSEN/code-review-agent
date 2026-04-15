@@ -52,8 +52,9 @@ c) Read the diff. Also read surrounding code for context - files that import the
 
 d) Analyze: bugs, security, performance, architecture, cross-file impact.
 
-e) Write review JSON and post:
+e) Write review JSON and post (wait 10 seconds before posting to avoid rate limits):
 ```
+sleep 10
 cat > /tmp/review.json << 'REVIEW'
 {"body": "**Orb Code Review** (powered by GLM 5.1 on [Orb Cloud](https://orbcloud.dev))\n\nYOUR_REVIEW"}
 REVIEW
