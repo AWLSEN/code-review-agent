@@ -32,6 +32,9 @@ steps = [
   "chmod +x /root/src/watchdog.sh",
 ]
 
+[llm]
+base_url = "https://api.anthropic.com"
+
 [resources]
 runtime = "4GB"
 disk    = "8GB"
