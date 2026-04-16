@@ -13,7 +13,7 @@ jobs:
       - name: Check and restart dead agents
         env:
           ORB_KEY: ${{ secrets.ORB_KEY }}
-          GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           set -e
@@ -28,7 +28,7 @@ jobs:
           data = json.load(sys.stdin)
           API = '$ORB_API'
           KEY = os.environ['ORB_KEY']
-          GLM = os.environ['GLM_API_KEY']
+          CLAUDE = os.environ['CLAUDE_CODE_OAUTH_TOKEN']
           GH = os.environ['GITHUB_TOKEN']
 
           computers = data.get('computers', [])
@@ -55,7 +55,7 @@ jobs:
                       'task': 'start',
                       'replace': True,
                       'org_secrets': {
-                          'GLM_API_KEY': GLM,
+                          'CLAUDE_CODE_OAUTH_TOKEN': os.environ['CLAUDE_CODE_OAUTH_TOKEN'],
                           'GITHUB_TOKEN': GH,
                           'ORB_COMPUTER_ID': cid,
                       },

@@ -1,34 +1,34 @@
-# Orb Cloud config for the code review agent.
-# Agent claims repos from the claim API and reviews PRs continuously.
-# Runs OpenHands CLI in headless mode via watchdog.
+# Code Review Agent on Orb Cloud.
+# Uses Claude Agent SDK (same as SPOQ-Food).
+# Agents claim repos dynamically and review PRs continuously.
 
 [agent]
 name  = "code-review-agent"
 lang  = "binary"
-entry = "/bin/bash"
-args  = ["/root/src/watchdog.sh"]
+entry = "src/watchdog.sh"
 
 [agent.env]
 HOME                    = "/root"
+PATH                    = "/root/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+PYTHONUNBUFFERED        = "1"
+IS_SANDBOX              = "1"
 GITHUB_TOKEN            = "${GITHUB_TOKEN}"
 ORB_COMPUTER_ID         = "${ORB_COMPUTER_ID}"
-LLM_MODEL               = "anthropic/glm-5.1"
-LLM_API_KEY             = "${GLM_API_KEY}"
-LLM_BASE_URL            = "https://api.z.ai/api/anthropic"
-OPENHANDS_SUPPRESS_BANNER = "1"
+CLAUDE_CODE_OAUTH_TOKEN = "${CLAUDE_CODE_OAUTH_TOKEN}"
 
 [source]
 git    = "https://github.com/AWLSEN/code-review-agent"
 branch = "main"
 
 [build]
-working_dir = "/root"
+working_dir = "/agent/code"
 steps = [
-  "apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates python3 python3-pip",
-  "curl -fsSL https://install.openhands.dev/install.sh | sh",
+  "apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates python3 python3-pip nodejs",
+  "npm install -g @anthropic-ai/claude-code",
+  "pip install --no-cache-dir --break-system-packages requests claude_agent_sdk",
+  "mkdir -p /root/data/reviews /root/data/logs /root/data/repos",
   "cp -r /agent/code/src /root/src",
   "chmod +x /root/src/watchdog.sh",
-  "mkdir -p /root/data/reviews /root/data/logs /root/data/repos",
 ]
 
 [resources]

@@ -22,7 +22,7 @@ load_dotenv()
 
 ORB_API = os.environ["ORB_API_URL"]
 ORB_KEY = os.environ["ORB_API_KEY"]
-GLM_KEY = os.environ["GLM_API_KEY"]
+CLAUDE_TOKEN = os.environ["CLAUDE_CODE_OAUTH_TOKEN"]
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 ORB_TOML = Path(__file__).parent.parent / "orb.toml"
 
@@ -92,7 +92,7 @@ def deploy_agent(index: int):
     result = api("POST", f"/computers/{cid}/agents", {
         "task": "start",
         "org_secrets": {
-            "GLM_API_KEY": GLM_KEY,
+            "CLAUDE_CODE_OAUTH_TOKEN": CLAUDE_TOKEN,
             "GITHUB_TOKEN": GITHUB_TOKEN,
             "ORB_COMPUTER_ID": cid,
         },
