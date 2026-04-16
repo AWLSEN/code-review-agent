@@ -65,30 +65,30 @@ async function orbFetch(path: string) {
   return res.json();
 }
 
-async function fetchRecentReviews(since: string) {
-  const sinceDate = since.slice(0, 19) + "Z";
-  const res = await fetch(
-    `https://api.github.com/search/issues?q=commenter:nidhishgajjar+%22Orb+Code+Review%22+updated:>${sinceDate}&sort=updated&order=desc&per_page=20`,
-    {
-      headers: {
-        Authorization: `token ${GITHUB_TOKEN}`,
-        Accept: "application/vnd.github.v3+json",
-      },
-      next: { revalidate: 0 },
+async function fetchReviewCounts(): Promise<{ total: number; byAgent: Record<string, number> }> {
+  // Read reviewed_prs.txt from each agent via Orb API
+  let total = 0;
+  const byAgent: Record<string, number> = {};
+
+  try {
+    const computersData = await orbFetch("/computers");
+    for (const c of computersData.computers || []) {
+      try {
+        const res = await fetch(
+          `${ORB_API}/computers/${c.id}/files/root/data/reviewed_prs.txt`,
+          { headers: { Authorization: `Bearer ${ORB_KEY}` }, next: { revalidate: 0 } }
+        );
+        if (res.ok) {
+          const text = await res.text();
+          const count = text.trim().split("\n").filter((l: string) => l.trim()).length;
+          byAgent[c.id] = count;
+          total += count;
+        }
+      } catch {}
     }
-  );
-  if (!res.ok) return { total: 0, items: [] };
-  const data = await res.json();
-  return {
-    total: data.total_count || 0,
-    items: (data.items || []).slice(0, 20).map((item: any) => ({
-      repo: item.repository_url?.split("/repos/")[1] || "",
-      title: item.title,
-      number: item.number,
-      url: item.html_url,
-      updated: item.updated_at,
-    })),
-  };
+  } catch {}
+
+  return { total, byAgent };
 }
 
 export async function GET() {
@@ -156,7 +156,7 @@ export async function GET() {
     const uptimeHours = Math.round((uptimeMs / 3600000) * 10) / 10;
 
     // Reviews
-    const reviewData = await fetchRecentReviews(stats.started_at);
+    const reviewData = await fetchReviewCounts();
 
     // Repo pool stats
     let totalRepos = 0;
@@ -184,7 +184,7 @@ export async function GET() {
         cost_total: Math.round(totalCost * 100) / 100,
         uptime_hours: uptimeHours,
       },
-      reviews: reviewData.items,
+      reviews: [],
       total_reviews: reviewData.total,
       started_at: stats.started_at,
       timestamp: new Date().toISOString(),
