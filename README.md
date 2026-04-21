@@ -14,7 +14,7 @@ An autonomous AI agent that continuously reviews pull requests on open source re
 
 ## How it works
 
-The agent uses [OpenHands](https://github.com/All-Hands-AI/OpenHands) in headless mode. Each cycle:
+The agent uses the [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk) as its harness, driving the `claude` CLI (Claude Code) in a persistent loop. Each cycle:
 
 - Call a claim API to get assigned repositories
 - For each repo: `git clone`, check open PRs, fetch diffs
@@ -23,7 +23,7 @@ The agent uses [OpenHands](https://github.com/All-Hands-AI/OpenHands) in headles
 - Report back to the claim API
 - Sleep 30 seconds, repeat
 
-The agent maintains state across cycles via session resume (`--resume`). It remembers which PRs it already reviewed and which repos it monitors.
+The agent maintains state across cycles via session resume. It remembers which PRs it already reviewed and which repos it monitors.
 
 ## Review format
 
@@ -37,33 +37,41 @@ Each review comment includes:
 
 ## Tech stack
 
-- **Agent runtime:** [OpenHands](https://github.com/All-Hands-AI/OpenHands) CLI (headless mode)
-- **LLM:** Any OpenAI-compatible or Anthropic-compatible model (configurable)
+- **Agent harness:** [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk) (Python) spawning the [`claude` CLI](https://github.com/anthropics/claude-code)
+- **LLM:** Anthropic-compatible endpoint (Anthropic, z.ai GLM, etc.) — swap by pointing `ANTHROPIC_BASE_URL` at a different provider
 - **GitHub API:** For reading PRs and posting comments
 - **Claim API:** Central coordination so multiple agents don't review the same repos
 
 ## Requirements
 
-- OpenHands CLI installed
+- Node.js (for `@anthropic-ai/claude-code`)
+- Python 3.12+ (for `claude_agent_sdk`)
 - GitHub PAT with `public_repo` scope
-- LLM API key (OpenRouter, Anthropic, OpenAI, etc.)
-- Python 3.12+
+- An Anthropic-compatible LLM key (Anthropic OAuth, z.ai, etc.)
 
 ## Configuration
 
 Set these environment variables:
 
 ```bash
-GITHUB_TOKEN=ghp_...          # GitHub PAT for reading PRs and posting comments
-LLM_MODEL=anthropic/claude-sonnet-4-20250514   # or any model
-LLM_API_KEY=sk-...            # your LLM provider API key
-LLM_BASE_URL=https://api.anthropic.com          # your LLM provider endpoint
+GITHUB_TOKEN=ghp_...                            # GitHub PAT for reading PRs and posting comments
+ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic   # Or https://api.anthropic.com for Anthropic direct
+ANTHROPIC_AUTH_TOKEN=...                        # z.ai API key, or use CLAUDE_CODE_OAUTH_TOKEN for Anthropic OAuth
 ```
 
 ## Running
 
+Install the harness:
+
 ```bash
-openhands --headless -t "You are a code review agent. Check for open PRs on the repos assigned to you, review them, post comments. Never stop."
+npm install -g @anthropic-ai/claude-code
+pip install claude_agent_sdk
+```
+
+Run the watchdog (which starts and supervises the agent loop):
+
+```bash
+./src/watchdog.sh
 ```
 
 ## License
