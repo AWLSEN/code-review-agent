@@ -1,0 +1,22 @@
+name: Deploy to ORB
+on:
+  push:
+    branches: ["deploy"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          ORB_API_KEY: ${{ secrets.ORB_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -fSs -X POST \
+            https://api.orbcloud.dev/v1/computers/5309d78d-131c-4e45-ac66-72b5d39d5ba1/build \
+            -H "Authorization: Bearer $ORB_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"org_secrets\":{\"GITHUB_TOKEN\":\"$GITHUB_TOKEN\"}}"
