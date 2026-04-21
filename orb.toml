@@ -19,7 +19,7 @@ CLAUDE_CODE_OAUTH_TOKEN = "${CLAUDE_CODE_OAUTH_TOKEN}"
 
 [source]
 git    = "https://github.com/AWLSEN/code-review-agent"
-branch = "main"
+branch = "deploy"
 
 [build]
 working_dir = "/agent/code"
@@ -38,6 +38,3 @@ base_url = "https://api.anthropic.com"
 [resources]
 runtime = "4GB"
 disk    = "8GB"
-
-[lifecycle]
-idle_timeout = "120s"

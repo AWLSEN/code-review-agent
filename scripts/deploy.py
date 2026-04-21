@@ -66,7 +66,7 @@ def deploy_agent(index: int):
 
     # 1. Create computer
     print("  Creating computer...")
-    computer = api("POST", "/computers", {"name": name})
+    computer = api("POST", "/computers", {"name": name, "runtime_mb": 4096, "disk_mb": 8192})
     cid = computer["id"]
     print(f"  Computer: {cid[:8]}")
 
