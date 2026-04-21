@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
 """
 Code Review Agent -- runs forever on Orb Cloud.
-Uses Claude Agent SDK (same pattern as SPOQ-Food).
+Uses Claude Agent SDK.
+
+Design notes:
+- Repo list comes from the claim API, fetched in Python each cycle, and
+  substituted into the prompt as facts (not instructions). This blocks
+  the model from hallucinating repos.
+- Always starts a fresh SDK session per cycle. Resume was causing the
+  model to re-review PRs from previous cycles.
+- reviewed_prs.txt is deduped (`sort -u`) at the start of every cycle.
 """
 
 import asyncio
+import json
 import os
+import subprocess
 import time
 import traceback
+import urllib.request
 from pathlib import Path
 from claude_agent_sdk import (
     query, ClaudeAgentOptions,
@@ -18,11 +29,14 @@ from claude_agent_sdk import (
 DATA_DIR = Path("/root/data")
 LOGS_DIR = DATA_DIR / "logs"
 PROMPT_FILE = Path("/root/src/agent-prompt.md")
-SESSION_FILE = LOGS_DIR / "last_session.txt"
+REVIEWED_FILE = DATA_DIR / "reviewed_prs.txt"
+
 AGENT_ID = os.environ.get("ORB_COMPUTER_ID", "unknown")
+AGENT_INDEX = os.environ.get("AGENT_INDEX", "0")
+AGENT_TOTAL = os.environ.get("AGENT_TOTAL", "1")
+CLAIM_API = "https://claim-api-five.vercel.app/api/claim"
 
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
-(DATA_DIR / "reviews").mkdir(parents=True, exist_ok=True)
 (DATA_DIR / "repos").mkdir(parents=True, exist_ok=True)
 
 
@@ -34,51 +48,64 @@ def log(msg):
         f.write(line + "\n")
 
 
-def save_session(sid):
-    if sid:
-        SESSION_FILE.write_text(sid)
+def fetch_assigned_repos():
+    """Call the claim API and return the authoritative repo list for this agent."""
+    url = f"{CLAIM_API}?agent={AGENT_ID}&idx={AGENT_INDEX}&total={AGENT_TOTAL}"
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+        repos = data.get("repos", [])
+        if not repos:
+            raise RuntimeError(f"claim API returned no repos: {data}")
+        return repos
+    except Exception as e:
+        log(f"claim API fetch failed: {e}")
+        raise
 
 
-def load_session():
-    if SESSION_FILE.exists():
-        sid = SESSION_FILE.read_text().strip()
-        return sid or None
-    return None
+def dedupe_reviewed_prs():
+    """sort -u the reviewed_prs.txt to drop duplicate entries."""
+    if not REVIEWED_FILE.exists():
+        return 0
+    try:
+        subprocess.run(
+            ["sort", "-u", "-o", str(REVIEWED_FILE), str(REVIEWED_FILE)],
+            check=True,
+        )
+        lines = REVIEWED_FILE.read_text().splitlines()
+        return len([l for l in lines if l.strip()])
+    except Exception as e:
+        log(f"dedupe failed: {e}")
+        return 0
 
 
-def clear_session():
-    SESSION_FILE.unlink(missing_ok=True)
+def build_prompt(repos, reviewed_count, run_num):
+    """Inject the authoritative repo list into the prompt template as facts."""
+    template = PROMPT_FILE.read_text()
+    repo_block = "\n".join(f"- {r}" for r in repos)
+    return (
+        f"You are a code review agent. Run #{run_num}. Agent ID: {AGENT_ID}. "
+        f"You have reviewed {reviewed_count} PRs so far.\n\n"
+        f"YOUR ASSIGNED REPOS (authoritative — do not review anything not in this list):\n"
+        f"{repo_block}\n\n"
+        f"{template}"
+    )
 
 
 async def run_agent():
-    system_prompt = PROMPT_FILE.read_text()
-    session_id = load_session()
-    if session_id:
-        log(f"Loaded session: {session_id}")
     run_num = 0
 
     while True:
         run_num += 1
-        reviewed = 0
         try:
-            reviewed_file = DATA_DIR / "reviewed_prs.txt"
-            reviewed = len(reviewed_file.read_text().strip().split("\n")) if reviewed_file.exists() and reviewed_file.read_text().strip() else 0
-        except:
-            pass
+            reviewed_count = dedupe_reviewed_prs()
+            log(f"=== RUN #{run_num} | reviewed_prs: {reviewed_count} | Agent: {AGENT_ID} idx={AGENT_INDEX}/{AGENT_TOTAL} ===")
 
-        log(f"=== RUN #{run_num} | Reviewed so far: {reviewed} | Agent: {AGENT_ID} ===")
+            repos = fetch_assigned_repos()
+            log(f"Assigned repos: {', '.join(repos)}")
 
-        if session_id:
-            prompt = (
-                f"Continue your code review work. Run #{run_num}. "
-                f"You have reviewed {reviewed} PRs so far. "
-                f"Check all your assigned repos for new PRs. "
-                f"Review any unreviewed ones. "
-                f"If all repos are clear, claim a new one from the API. "
-                f"After checking everything, run 'sleep 30' and start over. "
-                f"Never exit."
-            )
-            log(f"Resuming session {session_id}...")
+            prompt = build_prompt(repos, reviewed_count, run_num)
+
             options = ClaudeAgentOptions(
                 allowed_tools=[
                     "Bash", "Edit", "Read", "Write", "Glob", "Grep",
@@ -86,28 +113,17 @@ async def run_agent():
                 ],
                 permission_mode="bypassPermissions",
                 model="claude-sonnet-4-20250514",
-                resume=session_id,
+                system_prompt=(
+                    "You are a code review agent running on Orb Cloud. "
+                    "Your assigned repos are given to you at the start of each cycle. "
+                    "NEVER review a PR whose repo is not in that list. "
+                    "NEVER invent repo names. "
+                    "NEVER mark a PR as reviewed in reviewed_prs.txt unless the GitHub POST returned 201."
+                ),
                 cwd=str(DATA_DIR),
             )
-        else:
-            prompt = (
-                f"You are a code review agent. Run #{run_num}. Agent ID: {AGENT_ID}. "
-                f"Read the instructions below and follow them. Never exit.\n\n"
-                f"{system_prompt}"
-            )
+
             log("Starting FRESH session...")
-            options = ClaudeAgentOptions(
-                allowed_tools=[
-                    "Bash", "Edit", "Read", "Write", "Glob", "Grep",
-                    "WebFetch", "WebSearch"
-                ],
-                permission_mode="bypassPermissions",
-                model="claude-sonnet-4-20250514",
-                system_prompt="You are a code review agent that runs forever on Orb Cloud. You review PRs on open source repos, post comments, and claim new repos when idle. Never exit.",
-                cwd=str(DATA_DIR),
-            )
-
-        try:
             log_file = LOGS_DIR / f"run_{run_num}.log"
             msg_count = 0
             with open(log_file, "a") as lf:
@@ -118,9 +134,7 @@ async def run_agent():
                     if msg_count <= 5:
                         log(f"msg#{msg_count} type={type(message).__name__}")
                     if isinstance(message, ResultMessage):
-                        session_id = message.session_id
-                        save_session(session_id)
-                        log(f"Run complete. Session: {session_id}, "
+                        log(f"Run complete. Session: {message.session_id}, "
                             f"Turns: {message.num_turns}, "
                             f"Cost: ${message.total_cost_usd or 0:.2f}")
                     elif isinstance(message, AssistantMessage):
@@ -135,10 +149,6 @@ async def run_agent():
         except Exception as e:
             log(f"Error: {e}")
             traceback.print_exc()
-            if "session" in str(e).lower() or "resume" in str(e).lower():
-                log("Session error - clearing and starting fresh")
-                clear_session()
-                session_id = None
 
         log(f"Run #{run_num} ended. Restarting in 5s...")
         await asyncio.sleep(5)
