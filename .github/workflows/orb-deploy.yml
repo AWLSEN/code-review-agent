@@ -1,4 +1,5 @@
 name: Deploy to ORB
+
 on:
   push:
     branches: ["deploy"]
@@ -10,13 +11,44 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cid: 5309d78d-131c-4e45-ac66-72b5d39d5ba1
+            idx: "0"
+            total: "3"
+          - cid: f873b788-2c27-49ab-85d7-628cdfbf31bc
+            idx: "1"
+            total: "3"
+          - cid: 05624e42-512c-42cc-b5ed-9abb4d5df0ce
+            idx: "2"
+            total: "3"
     steps:
-      - env:
+      - name: Rebuild reviewer-${{ matrix.idx }}
+        env:
           ORB_API_KEY: ${{ secrets.ORB_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEWER_GH_PAT: ${{ secrets.REVIEWER_GH_PAT }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          CID: ${{ matrix.cid }}
+          IDX: ${{ matrix.idx }}
+          TOTAL: ${{ matrix.total }}
         run: |
-          curl -fSs -X POST \
-            https://api.orbcloud.dev/v1/computers/5309d78d-131c-4e45-ac66-72b5d39d5ba1/build \
+          set -e
+          API=https://api.orbcloud.dev/v1
+
+          echo "=== build $CID (re-clones deploy branch) ==="
+          curl -fSs -X POST "$API/computers/$CID/build" \
             -H "Authorization: Bearer $ORB_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"org_secrets\":{\"GITHUB_TOKEN\":\"$GITHUB_TOKEN\"}}"
+            -d "{\"org_secrets\":{\"GITHUB_TOKEN\":\"$REVIEWER_GH_PAT\",\"ANTHROPIC_BASE_URL\":\"$ANTHROPIC_BASE_URL\",\"ANTHROPIC_AUTH_TOKEN\":\"$ANTHROPIC_AUTH_TOKEN\"}}" \
+            | python3 -c "import json,sys;d=json.load(sys.stdin);print('build success:',d.get('success'),'steps:',len(d.get('steps',[])))"
+
+          echo "=== restart agent on $CID ==="
+          curl -fSs -X POST "$API/computers/$CID/agents" \
+            -H "Authorization: Bearer $ORB_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"task\":\"start\",\"org_secrets\":{\"ANTHROPIC_BASE_URL\":\"$ANTHROPIC_BASE_URL\",\"ANTHROPIC_AUTH_TOKEN\":\"$ANTHROPIC_AUTH_TOKEN\",\"GITHUB_TOKEN\":\"$REVIEWER_GH_PAT\",\"ORB_COMPUTER_ID\":\"$CID\",\"AGENT_INDEX\":\"$IDX\",\"AGENT_TOTAL\":\"$TOTAL\"}}"
+          echo
+          echo "=== deployed reviewer-$IDX on $CID ==="
