@@ -9,13 +9,15 @@ entry = "/bin/bash"
 args  = ["/root/src/watchdog.sh"]
 
 [agent.env]
-HOME                    = "/root"
-PATH                    = "/root/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-PYTHONUNBUFFERED        = "1"
-IS_SANDBOX              = "1"
-GITHUB_TOKEN            = "${GITHUB_TOKEN}"
-ORB_COMPUTER_ID         = "${ORB_COMPUTER_ID}"
-CLAUDE_CODE_OAUTH_TOKEN = "${CLAUDE_CODE_OAUTH_TOKEN}"
+HOME                 = "/root"
+PATH                 = "/root/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+PYTHONUNBUFFERED     = "1"
+IS_SANDBOX           = "1"
+GITHUB_TOKEN         = "${GITHUB_TOKEN}"
+ORB_COMPUTER_ID      = "${ORB_COMPUTER_ID}"
+ANTHROPIC_BASE_URL   = "${ANTHROPIC_BASE_URL}"
+ANTHROPIC_AUTH_TOKEN = "${ANTHROPIC_AUTH_TOKEN}"
+API_TIMEOUT_MS       = "3000000"
 
 [source]
 git    = "https://github.com/AWLSEN/code-review-agent"
@@ -33,7 +35,7 @@ steps = [
 ]
 
 [llm]
-base_url = "https://api.anthropic.com"
+base_url = "https://api.z.ai/api/anthropic"
 
 [resources]
 runtime = "4GB"

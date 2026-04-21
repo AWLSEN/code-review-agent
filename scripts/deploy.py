@@ -22,7 +22,8 @@ load_dotenv()
 
 ORB_API = os.environ["ORB_API_URL"]
 ORB_KEY = os.environ["ORB_API_KEY"]
-CLAUDE_TOKEN = os.environ["CLAUDE_CODE_OAUTH_TOKEN"]
+ANTHROPIC_BASE_URL = os.environ["ANTHROPIC_BASE_URL"]
+ANTHROPIC_AUTH_TOKEN = os.environ["ANTHROPIC_AUTH_TOKEN"]
 GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
 ORB_TOML = Path(__file__).parent.parent / "orb.toml"
 
@@ -92,7 +93,8 @@ def deploy_agent(index: int):
     result = api("POST", f"/computers/{cid}/agents", {
         "task": "start",
         "org_secrets": {
-            "CLAUDE_CODE_OAUTH_TOKEN": CLAUDE_TOKEN,
+            "ANTHROPIC_BASE_URL": ANTHROPIC_BASE_URL,
+            "ANTHROPIC_AUTH_TOKEN": ANTHROPIC_AUTH_TOKEN,
             "GITHUB_TOKEN": GITHUB_TOKEN,
             "ORB_COMPUTER_ID": cid,
         },
@@ -114,7 +116,7 @@ def main():
 
     print(f"Deploying {count} code review agents to Orb Cloud")
     print(f"API: {ORB_API}")
-    print(f"LLM: GLM 5.1 via api.z.ai")
+    print(f"LLM: GLM-4.7 via {ANTHROPIC_BASE_URL}")
     print(f"Agents claim repos dynamically from review.orbcloud.dev/api/claim")
     print()
 

@@ -56,7 +56,7 @@ e) Write review JSON and post (wait 10 seconds before posting to avoid rate limi
 ```
 sleep 10
 cat > /tmp/review.json << 'REVIEW'
-{"body": "**Orb Code Review** (powered by GLM 5.1 on [Orb Cloud](https://orbcloud.dev))\n\nYOUR_REVIEW"}
+{"body": "**Orb Code Review** (powered by GLM-4.7 on [Orb Cloud](https://orbcloud.dev))\n\nYOUR_REVIEW"}
 REVIEW
 
 curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" \
@@ -97,5 +97,5 @@ Then go back to Step 1. Check all repos again. Review any new PRs. Claim new rep
 - Always use `sleep 30` between cycles - run the command in your terminal.
 - Be constructive and respectful in reviews.
 - If a PR looks good, say so. Don't invent problems.
-- Start every review with: **Orb Code Review** (powered by GLM 5.1 on [Orb Cloud](https://orbcloud.dev))
+- Start every review with: **Orb Code Review** (powered by GLM-4.7 on [Orb Cloud](https://orbcloud.dev))
 - Structure reviews: Summary, Architecture, Issues, Cross-file impact, Assessment (approve/request-changes/comment)
