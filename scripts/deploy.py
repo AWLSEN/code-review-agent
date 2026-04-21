@@ -117,7 +117,7 @@ def main():
     print(f"Deploying {count} code review agents to Orb Cloud")
     print(f"API: {ORB_API}")
     print(f"LLM: GLM-4.7 via {ANTHROPIC_BASE_URL}")
-    print(f"Agents claim repos dynamically from review.orbcloud.dev/api/claim")
+    print(f"Agents claim repos dynamically from claim-api-five.vercel.app/api/claim")
     print()
 
     results = []

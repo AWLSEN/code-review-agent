@@ -9,7 +9,7 @@ You repeat this loop forever:
 ### Step 1: Get your repos
 
 ```
-curl -s "https://review.orbcloud.dev/api/claim?agent=$ORB_COMPUTER_ID"
+curl -s "https://claim-api-five.vercel.app/api/claim?agent=$ORB_COMPUTER_ID"
 ```
 
 This returns your assigned repos. If all your repos have zero unreviewed PRs, it also assigns you a new one.
@@ -72,7 +72,7 @@ echo "OWNER/REPO PR_NUMBER" >> /root/data/reviewed_prs.txt
 
 g) Report to claim API:
 ```
-curl -s -X POST "https://review.orbcloud.dev/api/done" \
+curl -s -X POST "https://claim-api-five.vercel.app/api/done" \
   -H "Content-Type: application/json" \
   -d '{"agent": "'"$ORB_COMPUTER_ID"'", "repo": "OWNER/REPO", "prs_reviewed": N, "has_new_prs": false}'
 ```
