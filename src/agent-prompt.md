@@ -9,10 +9,10 @@ You repeat this loop forever:
 ### Step 1: Get your repos
 
 ```
-curl -s "https://claim-api-five.vercel.app/api/claim?agent=$ORB_COMPUTER_ID"
+curl -s "https://claim-api-five.vercel.app/api/claim?agent=$ORB_COMPUTER_ID&idx=$AGENT_INDEX&total=$AGENT_TOTAL"
 ```
 
-This returns your assigned repos. If all your repos have zero unreviewed PRs, it also assigns you a new one.
+This returns your assigned repos — a disjoint slice of the pool based on your index. Other agents in the swarm have different repos, so no overlap.
 
 ### Step 2: Check each repo for open PRs
 

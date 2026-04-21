@@ -59,7 +59,7 @@ def api_toml(path, toml_bytes):
         return json.loads(resp.read().decode())
 
 
-def deploy_agent(index: int):
+def deploy_agent(index: int, total: int):
     name = f"reviewer-{index:02d}"
     print(f"\n{'='*60}")
     print(f"Deploying agent {index}: {name}")
@@ -97,6 +97,8 @@ def deploy_agent(index: int):
             "ANTHROPIC_AUTH_TOKEN": ANTHROPIC_AUTH_TOKEN,
             "GITHUB_TOKEN": GITHUB_TOKEN,
             "ORB_COMPUTER_ID": cid,
+            "AGENT_INDEX": str(index),
+            "AGENT_TOTAL": str(total),
         },
     })
     deployed = result.get("deployed", 0)
@@ -123,7 +125,7 @@ def main():
     results = []
     for i in range(count):
         try:
-            result = deploy_agent(i)
+            result = deploy_agent(i, count)
             if result:
                 results.append(result)
         except Exception as e:
