@@ -32,6 +32,7 @@ steps = [
   "npm install -g @anthropic-ai/claude-code",
   "pip install --no-cache-dir --break-system-packages requests claude_agent_sdk",
   "mkdir -p /root/data/reviews /root/data/logs /root/data/repos",
+  "rm -rf /root/src",
   "cp -r /agent/code/src /root/src",
   "chmod +x /root/src/watchdog.sh",
 ]
