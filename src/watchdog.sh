@@ -44,6 +44,24 @@ log "Auto-compaction enabled. Runs indefinitely."
 log "Stall detection: restart if idle >${STALL_TIMEOUT}s."
 log "============================================"
 
+# One-time auth probe: confirm ANTHROPIC_AUTH_TOKEN reaches the container
+# and z.ai accepts it from inside Orb. Writes to env-probe.log.
+PROBE_LOG="$LOG_DIR/env-probe.log"
+{
+  echo "=== probe @ $(date '+%Y-%m-%d %H:%M:%S') ==="
+  echo "ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL:-UNSET}"
+  echo "ANTHROPIC_AUTH_TOKEN length=${#ANTHROPIC_AUTH_TOKEN} prefix=${ANTHROPIC_AUTH_TOKEN:0:20}"
+  echo "GITHUB_TOKEN length=${#GITHUB_TOKEN} prefix=${GITHUB_TOKEN:0:12}"
+  echo "AGENT_INDEX=${AGENT_INDEX:-UNSET} AGENT_TOTAL=${AGENT_TOTAL:-UNSET}"
+  echo "-- direct z.ai call --"
+  curl -sS -w "\nHTTP:%{http_code}\n" -X POST "${ANTHROPIC_BASE_URL}/v1/messages" \
+    -H "Authorization: Bearer ${ANTHROPIC_AUTH_TOKEN}" \
+    -H "anthropic-version: 2023-06-01" \
+    -H "content-type: application/json" \
+    -d '{"model":"claude-sonnet-4-20250514","max_tokens":20,"messages":[{"role":"user","content":"probe"}]}' | head -c 500
+  echo
+} >> "$PROBE_LOG" 2>&1
+
 while true; do
     log "Starting agent..."
 
